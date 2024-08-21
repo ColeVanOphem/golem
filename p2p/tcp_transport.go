@@ -111,8 +111,6 @@ func (t *TCPTransport) startAcceptLoop() {
 	}
 }
 
-type Temp struct{}
-
 func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 	var err error
 
