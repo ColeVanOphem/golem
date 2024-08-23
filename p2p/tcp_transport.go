@@ -68,6 +68,10 @@ func (t *TCPTransport) Consume() <-chan RPC {
 	return t.rpcch
 }
 
+func (t *TCPTransport) Close() error {
+	return t.listener.Close()
+}
+
 func (t *TCPTransport) Dial(addr string) error {
 	conn, err := net.Dial("tcp", addr)
 
