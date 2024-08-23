@@ -135,6 +135,16 @@ func (s *Store) writeStream(id string, key string, r io.Reader) (int64, error) {
 	return io.Copy(f, r)
 }
 
+func (s *Store) WriteDecrypt(encKey []byte, id string, key string, r io.Reader) (int64, error) {
+	f, err := s.openFileForWriting(id, key)
+	if err != nil {
+		return 0, err
+	}
+
+	n, err := copyDecrypt(encKey, r, f)
+	return int64(n), err
+}
+
 // Reading
 
 func (s *Store) Read(id string, key string) (int64, io.Reader, error) {
