@@ -109,8 +109,6 @@ func (t *TCPTransport) startAcceptLoop() {
 			fmt.Printf("TCP accept error: %s\n", err)
 		}
 
-		fmt.Printf("new incoming connection %+v\n", conn)
-
 		go t.handleConn(conn, false)
 	}
 }
@@ -148,9 +146,9 @@ func (t *TCPTransport) handleConn(conn net.Conn, outbound bool) {
 
 		if rpc.Stream {
 			peer.wg.Add(1)
-			fmt.Printf("[%s] incoming stream, waiting...\n", conn.RemoteAddr())
+			fmt.Printf("[%s]<-[%s] incoming stream, waiting...\n", conn.LocalAddr(), conn.RemoteAddr())
 			peer.wg.Wait()
-			fmt.Printf("[%s] stream closed, resuming read loop\n", conn.RemoteAddr())
+			fmt.Printf("[%s]<-[%s] stream closed, resuming read loop\n", conn.LocalAddr(), conn.RemoteAddr())
 			continue
 		}
 

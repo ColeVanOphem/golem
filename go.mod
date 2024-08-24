@@ -1,4 +1,4 @@
-module github.com/anthdm/foreverstore
+module github.com/ColeVanOphem/golem
 
 go 1.23
 

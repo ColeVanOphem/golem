@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anthdm/foreverstore/p2p"
+	"github.com/ColeVanOphem/golem/p2p"
 )
 
 type FileServerOpts struct {
@@ -45,6 +45,8 @@ func NewFileServer(opts FileServerOpts) *FileServer {
 	return &FileServer{
 		FileServerOpts: opts,
 		store:          NewStore(storeOpts),
+		quitch:         make(chan struct{}),
+		peers:          make(map[string]p2p.Peer),
 	}
 }
 
@@ -111,7 +113,7 @@ func (s *FileServer) Get(key string) (io.Reader, error) {
 			return nil, err
 		}
 
-		fmt.Printf("[%s] received (%d) bytes over the network from (%s)", s.Transport.Addr(), n, peer.RemoteAddr())
+		fmt.Printf("[%s] received (%d) bytes over the network from (%s)\n", s.Transport.Addr(), n, peer.RemoteAddr())
 
 		peer.CloseStream()
 	}
@@ -171,14 +173,14 @@ func (s *FileServer) OnPeer(p p2p.Peer) error {
 
 	s.peers[p.RemoteAddr().String()] = p
 
-	log.Printf("connected with remote %s", p.RemoteAddr())
+	log.Printf("[%s] connected with remote %s\n", s.Transport.Addr(), p.RemoteAddr())
 
 	return nil
 }
 
 func (s *FileServer) loop() {
 	defer func() {
-		log.Println("file server stopped due to error or user quit action")
+		log.Printf("[%s] file server stopped due to error or user quit action\n", s.Transport.Addr())
 		s.Transport.Close()
 	}()
 
@@ -187,10 +189,10 @@ func (s *FileServer) loop() {
 		case rpc := <-s.Transport.Consume():
 			var msg Message
 			if err := gob.NewDecoder(bytes.NewReader(rpc.Payload)).Decode(&msg); err != nil {
-				log.Println("decoding error: ", err)
+				log.Printf("[%s] decoding error: %s\n", s.Transport.Addr(), err)
 			}
 			if err := s.handleMessage(rpc.From, &msg); err != nil {
-				log.Println("handle message error: ", err)
+				log.Printf("[%s] handle message error: %s\n", s.Transport.Addr(), err)
 			}
 
 		case <-s.quitch:
@@ -223,7 +225,7 @@ func (s *FileServer) handleMessageGetFile(from string, msg MessageGetFile) error
 	}
 
 	if rc, ok := r.(io.ReadCloser); ok {
-		fmt.Println("closing readCloser")
+		fmt.Printf("[%s] closing readCloser\n", s.Transport.Addr())
 		defer rc.Close()
 	}
 
@@ -248,7 +250,7 @@ func (s *FileServer) handleMessageGetFile(from string, msg MessageGetFile) error
 func (s *FileServer) handleMessageStoreFile(from string, msg MessageStoreFile) error {
 	peer, ok := s.peers[from]
 	if !ok {
-		return fmt.Errorf("peer (%s) could not be found in the peer list", from)
+		return fmt.Errorf("[%s] peer (%s) could not be found in the peer list", s.Transport.Addr(), from)
 	}
 
 	n, err := s.store.Write(msg.ID, msg.Key, io.LimitReader(peer, msg.Size))

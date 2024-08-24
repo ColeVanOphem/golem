@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"time"
 
-	"github.com/anthdm/foreverstore/p2p"
+	"github.com/ColeVanOphem/golem/p2p"
 )
 
 func makeServer(listenAddr string, nodes ...string) *FileServer {
@@ -20,7 +20,7 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 
 	fileServerOpts := FileServerOpts{
 		EncKey:            newEncryptionKey(),
-		StorageRoot:       listenAddr + "_network",
+		StorageRoot:       "local/" + listenAddr + "_network",
 		PathTransformFunc: DefaultPathTransformFunc,
 		Transport:         tcpTransport,
 		BootstrapNodes:    nodes,
@@ -34,22 +34,22 @@ func makeServer(listenAddr string, nodes ...string) *FileServer {
 }
 
 func main() {
-	s1 := makeServer(":3000", "")
-	s2 := makeServer(":5000", "")
-	s3 := makeServer(":7000", ":3000", ":5000")
+	s1 := makeServer(":8000", "")
+	s2 := makeServer(":8080", "")
+	s3 := makeServer(":8081", ":8000", ":8080")
 
 	go func() { log.Fatal(s1.Start()) }()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	go func() { log.Fatal(s2.Start()) }()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
 	go s3.Start()
-	time.Sleep(2 * time.Second)
+	time.Sleep(1 * time.Second)
 
-	for i := 0; i < 20; i++ {
-		key := fmt.Sprintf("picture_%d.png", i)
-		data := bytes.NewReader([]byte("my big cat picture"))
+	for i := 0; i < 10; i++ {
+		key := fmt.Sprintf("data_%d.txt", i)
+		data := bytes.NewReader([]byte("my very important information"))
 
 		s3.Store(key, data)
 
@@ -62,12 +62,60 @@ func main() {
 			log.Fatal(err)
 		}
 
-		b, err := ioutil.ReadAll(r)
+		b, err := io.ReadAll(r)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		fmt.Println(string(b))
+		fmt.Printf("[%s] finished using file (%s) with content \"%s\"\n", s3.Transport.Addr(), key, string(b))
+		time.Sleep(1 * time.Second)
+	}
 
+	for i := 10; i < 20; i++ {
+		key := fmt.Sprintf("data_%d.txt", i)
+		data := bytes.NewReader([]byte("my very important information"))
+
+		s2.Store(key, data)
+
+		if err := s2.store.Delete(s2.ID, key); err != nil {
+			log.Fatal(err)
+		}
+
+		r, err := s2.Get(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("[%s] finished using file (%s) with content \"%s\"\n", s2.Transport.Addr(), key, string(b))
+		time.Sleep(1 * time.Second)
+	}
+
+	for i := 20; i < 30; i++ {
+		key := fmt.Sprintf("data_%d.txt", i)
+		data := bytes.NewReader([]byte("my very important information"))
+
+		s1.Store(key, data)
+
+		if err := s1.store.Delete(s1.ID, key); err != nil {
+			log.Fatal(err)
+		}
+
+		r, err := s1.Get(key)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		b, err := io.ReadAll(r)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Printf("[%s] finished using file (%s) with content \"%s\"\n", s1.Transport.Addr(), key, string(b))
+		time.Sleep(1 * time.Second)
 	}
 }
